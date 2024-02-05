@@ -171,7 +171,8 @@ export function apply(ctx: Context, cfg: Config) {
             const exitCommandTip = cfg.menuExitCommandTip ? `退出选择请发[${exitCommands}]中的任意内容<br /><br />` : ''
 
             let quoteId = session.messageId
-
+            let choiceMessageId
+          
             if (cfg.imageMode) {
                 const imageBuffer = await generateSongListImage(ctx.puppeteer, songListText, cfg)
                 const payload = [
@@ -182,9 +183,11 @@ export function apply(ctx: Context, cfg: Config) {
                     h.text('输入歌曲对应的序号')
                 ]
                 const msg = await session.send(payload)
+                choiceMessageId = msg[0]
                 quoteId = msg.at(-1)
             } else {
                 const msg = await session.send(songListText + `<br /><br />${exitCommandTip}请在${waitTimeInSeconds}秒内，<br />输入歌曲对应的序号`)
+                choiceMessageId = msg[0]
                 quoteId = msg.at(-1)
             }
 
@@ -223,7 +226,9 @@ export function apply(ctx: Context, cfg: Config) {
             }
             if (!platform) return `${h.quote(quoteId)}获取歌曲失败。`
 
-            const [tipMessageId] = await session.send(cfg.generationTip)
+            if (cfg.generationTip) {
+              const [tipMessageId] = await session.send(cfg.generationTip)
+            }
 
             const song = await search(ctx.http, platform, { songid })
             if (song.code === 0) {
@@ -242,7 +247,8 @@ export function apply(ctx: Context, cfg: Config) {
                 } catch (e) {
                     logger.error(e)
                 } finally {
-                    if (cfg.recall) session.bot.deleteMessage(session.channelId, tipMessageId)
+                    if (cfg.recall) session.bot.deleteMessage(session.channelId, choiceMessageId)
+                    if (cfg.recall && cfg.generationTip) session.bot.deleteMessage(session.channelId, tipMessageId)
                 }
             } else {
                 return `${h.quote(quoteId)}获取歌曲失败。`
